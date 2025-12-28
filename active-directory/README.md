@@ -80,6 +80,24 @@ xfreerdp /u:Administrator /p:Password123 /v:10.10.10.5 /clipboard /dynamic-resol
 ```
 ---
 
+# scp
+
+Securely copy files between hosts over SSH. Commonly used to transfer artifacts (e.g. Kerberos TGS hashes, logs, dumps) from remote machines to a local analysis environment.
+
+---
+
+## Usage
+
+```bash
+scp <user>@<remote_host>:<remote_path> <local_path>
+```
+Example(Transfer a Kerberoast TGS hash file generated during Kerberos enumeration from the HTB attack box to the local VM): 
+```bash
+scp htb-student@<ATTACK_BOX_IP>:/home/htb-student/sqldev_tgs .
+```
+
+---
+
 # fping
 
 ## Purpose
