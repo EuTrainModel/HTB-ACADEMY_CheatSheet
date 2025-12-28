@@ -26,6 +26,8 @@ This file documents the **types and sources** of credentials obtained during HTB
 | Privilege Level | Standard Domain User? |
 | Notes | Initial access used for SPN enumeration |
 
+---
+
 | Field | Value |
 |------|--------|
 | Username | `INLANEFREIGHT\sqldev:database!` |
@@ -36,9 +38,11 @@ This file documents the **types and sources** of credentials obtained during HTB
 | Privilege Level | Domain Admin |
 | Notes | Service account running SQL Server; over-privileged |
 
+---
+
 | Field | Value |
 |------|--------|
-| Username | `INLANEFREIGHT\SAPService` |
+| Username | `INLANEFREIGHT\SAPService:!SapperFi2` |
 | Type | Service Account |
 | Source | Kerberoasting (TGS request → offline crack) |
 | Usage | SAP application service authentication |
