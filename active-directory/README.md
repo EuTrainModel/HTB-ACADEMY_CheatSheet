@@ -78,6 +78,19 @@ Example:
 ```bash
 xfreerdp /u:Administrator /p:Password123 /v:10.10.10.5 /clipboard /dynamic-resolution
 ```
+---
+
+# fping
+
+## Purpose
+Fast ICMP ping sweep to discover which hosts are alive in a subnet.
+
+---
+
+## Command
+```bash
+fping -asgq 172.16.5.0/23
+```
 
 ---
 
