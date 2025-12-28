@@ -18,14 +18,23 @@ This file documents the **types and sources** of credentials obtained during HTB
 
 | Field | Value |
 |------|--------|
-| Username | `INLANEFREIGHT.LOCAL\forend:Klmcargo2` |
+| Username | `INLANEFREIGHT\forend:Klmcargo2` |
 | Type | Domain User |
 | Source | Responder (LLMNR/NBT-NS poisoning → NetNTLMv2 → cracked) |
 | Usage | Kerberos Authentication |
 | Service | - |
-| Privilege Level | - |
-| Notes | - |
+| Privilege Level | Standard Domain User? |
+| Notes | Initial access used for SPN enumeration |
 
+| Field | Value |
+|------|--------|
+| Username | `INLANEFREIGHT\sqldev:database!` |
+| Type | Service Account |
+| Source | Kerberoasting (TGS request → offline crack) |
+| Usage | Domain administration, SQL service authentication |
+| Service | MSSQLSvc/DEV-PRE-SQL.inlanefreight.local:1433 |
+| Privilege Level | Domain Admin |
+| Notes | Service account running SQL Server; over-privileged |
 ---
 
 ## Legend
