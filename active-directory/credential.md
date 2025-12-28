@@ -35,6 +35,18 @@ This file documents the **types and sources** of credentials obtained during HTB
 | Service | MSSQLSvc/DEV-PRE-SQL.inlanefreight.local:1433 |
 | Privilege Level | Domain Admin |
 | Notes | Service account running SQL Server; over-privileged |
+
+| Field | Value |
+|------|--------|
+| Username | `INLANEFREIGHT\SAPService` |
+| Type | Service Account |
+| Source | Kerberoasting (TGS request → offline crack) |
+| Usage | SAP application service authentication |
+| Service | SAPService/srv01.inlanefreight.local |
+| Privilege Level | Account Operators |
+| Notes | Service account cracked from Kerberos TGS; member of built-in Account Operators group |
+
+
 ---
 
 ## Legend
