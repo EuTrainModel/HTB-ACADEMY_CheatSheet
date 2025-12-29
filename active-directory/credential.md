@@ -50,6 +50,18 @@ This file documents the **types and sources** of credentials obtained during HTB
 | Privilege Level | Account Operators |
 | Notes | Service account cracked from Kerberos TGS; member of built-in Account Operators group |
 
+---
+
+| Field | Value |
+|------|--------|
+| Username | `INLANEFREIGHT\svc_vmwaresso:Virtual01` |
+| Type | Service Account |
+| Source | Kerberoasting |
+| Service | VMware |
+| ServicePrincipalName | `vmware/inlanefreight.local` |
+| Privilege Level | Standard Domain User |
+| Notes | Password cracked from Kerberos TGS ticket |
+
 
 ---
 
