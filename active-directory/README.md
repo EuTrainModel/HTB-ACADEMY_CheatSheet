@@ -1171,6 +1171,13 @@ python3 windapsearch.py --dc-ip <DC_IP> \
 ```
 
 This often reveals **hidden privilege escalation paths**.
+---
+
+## Sharphound.exe
+This command runs SharpHound in full collection mode and saves the results into a ZIP file that can later be imported into BloodHound for Active Directory attack-path analysis. 
+```powershell
+.\SharpHound.exe -c All --zipfilename <filename>
+```
 
 ---
 
