@@ -62,6 +62,11 @@ This file documents the **types and sources** of credentials obtained during HTB
 | Privilege Level | Standard Domain User |
 | Notes | Password cracked from Kerberos TGS ticket |
 
+---
+
+| Field | Value |
+|------|--------|
+| Username | `INLANEFREIGHT\wley:transporter@4` |
 
 ---
 
