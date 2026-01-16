@@ -70,6 +70,13 @@ This file documents the **types and sources** of credentials obtained during HTB
 
 ---
 
+| Field | Value |
+|------|--------|
+| Username | `INLANEFREIGHT\adunn:SyncMaster757` |
+| Extras | User can be used for DCSync Attack |
+
+---
+
 ## Legend
 
 - **Source** = How the credential was obtained
