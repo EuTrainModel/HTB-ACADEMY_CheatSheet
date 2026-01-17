@@ -77,6 +77,20 @@ This file documents the **types and sources** of credentials obtained during HTB
 
 ---
 
+| Field | Value |
+|------|--------|
+| Username | `INLANEFREIGHT\proxyagent:Pr0xy_ILFREIGHT!` |
+| Notes | User with the option "Store password using reversible encryption" set. |
+
+---
+
+| Field | Value |
+|------|--------|
+| Username | `INLANEFREIGHT\syncron:Mycleart3xtP@ss!` |
+| Notes | User with the option "Store password using reversible encryption" set. |
+
+---
+
 ## Legend
 
 - **Source** = How the credential was obtained
